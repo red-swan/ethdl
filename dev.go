@@ -44,16 +44,33 @@ func main() {
 	args := os.Args
 
 	// get json
-	var generic map[string]interface{}
-	err = getJSON(createSourceCodeEndpoint(args[1], etherscanKey), &generic)
+	type SourceCode struct {
+		SourceCode           string
+		ABI                  string
+		ContractName         string
+		CompilerVersion      string
+		Runs                 string
+		ConstructorArguments string
+		EVMVersion           string
+		Library              string
+		LicenseType          string
+		Proxy                string
+		Implmentation        string
+		SwarmSource          string
+	}
+	type EndpointResponse struct {
+		Status  string
+		Message string
+		Result  []SourceCode
+	}
+	var apiResonse EndpointResponse
+	err = getJSON(createSourceCodeEndpoint(args[1], etherscanKey), &apiResonse)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	for key, _ := range generic {
-		fmt.Println(key)
+	for _, v := range apiResonse.Result {
+		fmt.Println(v.ContractName)
 	}
-
-	fmt.Println(generic["result"])
 
 }
