@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"flag"
 	"fmt"
 	"log"
 	"os"
@@ -13,15 +14,36 @@ import (
 
 func main() {
 
-	// set up
-	err := godotenv.Load()
-	if err != nil {
-		log.Fatal(err)
+	// Gathering run params ------------------------------------------------------
+	// Gathering flags
+	pathPtr := flag.String("out", ".", "The ouptut path, will default to the current directory.")
+	ethPtr := flag.String("etherscan-api-key", "", "Your etherscan api key")
+	config := CLIFlags{*pathPtr, *ethPtr, ""}
+
+	// Handle default output path
+	if config.OutputDir == "." {
+		wd, err := os.Getwd()
+		if err != nil {
+			log.Fatal(err)
+		}
+		config.OutputDir = wd
 	}
 
-	etherscanKey := os.Getenv("ETHERSCAN_KEY")
-	args := os.Args
+	// Handle default etherscan key
+	if config.OutputDir == "." {
+		// Load an env file, ignore any errors
+		godotenv.Load()
+		config.EtherScanApiKey = os.Getenv("ETHERSCAN_API_KEY")
+	}
 
+	// Handle the address
+	var remainingArgs []string = flag.Args()
+	if len(remainingArgs) != 1 {
+		panic("Must provide an address without flag at the end")
+	}
+	config.Address = remainingArgs[0]
+
+	// Call Etherscan ------------------------------------------------------------
 	var apiResonse EndpointResponse
 	err = GetJSON(CreateSourceCodeEndpoint(args[1], etherscanKey), &apiResonse)
 	if err != nil {

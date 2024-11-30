@@ -1,5 +1,11 @@
 package main
 
+type CLIFlags struct {
+	OutputDir       string
+	EtherScanApiKey string
+	Address         string
+}
+
 type Result struct {
 	SourceCode           string // it's a string and then parsed again, why??
 	ABI                  string

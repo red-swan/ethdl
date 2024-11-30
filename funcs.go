@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
+	"unicode/utf8"
 )
 
 func CreateSourceCodeEndpoint(address, key string) string {
@@ -40,4 +42,8 @@ func CreateFile(p string) (*os.File, error) {
 		return nil, err
 	}
 	return os.Create(p)
+}
+
+func isAddressString(s string) bool {
+	return strings.HasPrefix(s, "0x") && utf8.RuneCountInString(s) == 42
 }
