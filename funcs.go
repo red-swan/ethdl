@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -16,9 +17,9 @@ import (
 
 // Utility Functions -----------------------------------------------------------
 // Generic panic on error
-func panicIfNotNil(err error) {
+func panicIfNotNil(s string, err error) {
 	if err != nil {
-		panic(err)
+		log.Fatalf(s, err)
 	}
 }
 
@@ -42,9 +43,9 @@ func BuildConfig() CLIFlags {
 
 	// Handle default etherscan key ----------------
 	if config.EtherScanApiKey == "" {
-		// Load an env file
-		err := godotenv.Load()
-		panicIfNotNil(err)
+		// Load an env file, ignore any errors
+		godotenv.Load()
+
 		config.EtherScanApiKey = os.Getenv("ETHERSCAN_API_KEY")
 	}
 	if config.EtherScanApiKey == "" {
@@ -64,7 +65,7 @@ func BuildConfig() CLIFlags {
 	// Handle default output path ------------------
 	if config.OutputDir == "." {
 		wd, err := os.Getwd()
-		panicIfNotNil(err)
+		panicIfNotNil("Error when getting working directory: %v", err)
 		// defaults to the working directory + the address we're downloading from
 		config.OutputDir = filepath.Join(wd, config.Address)
 	}
@@ -99,7 +100,7 @@ func GetSources(address, apiKey string) SourceCode {
 
 	var apiResonse EndpointResponse
 	err := GetJSON(CreateSourceCodeEndpoint(address, apiKey), &apiResonse)
-	panicIfNotNil(err)
+	panicIfNotNil("Error when gathering JSON: %V", err)
 	// status can come back zero
 	if apiResonse.Status != "1" {
 		panic("API Call returned bad status: " + apiResonse.Message)
@@ -112,7 +113,7 @@ func GetSources(address, apiKey string) SourceCode {
 	// Build the SourceCode Object from the JSON
 	var sourceCode SourceCode
 	err = json.NewDecoder(bytes.NewReader([]byte(sourceCodeStr))).Decode(&sourceCode)
-	panicIfNotNil(err)
+	panicIfNotNil("Error when decoding JSON: %v", err)
 
 	return sourceCode
 
@@ -126,10 +127,10 @@ func WriteSourceCode(sourceObj SourceCode, directory string) {
 		var fullpath string = filepath.Join(directory, relativepath)
 
 		err := os.MkdirAll(filepath.Dir(fullpath), 0770)
-		panicIfNotNil(err)
+		panicIfNotNil("Error when making directory: %v", err)
 
 		filePtr, err := os.Create(fullpath)
-		panicIfNotNil(err)
+		panicIfNotNil("Error when creating file: %v", err)
 
 		filePtr.WriteString(content.Content)
 		filePtr.Close()
