@@ -1,0 +1,1 @@
+1. Add feature: download from single file sources. Currently it only works on multi-file responses.
