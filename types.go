@@ -1,13 +1,22 @@
 package main
 
+// CLI Flags
+// dev: will be changed when config file feature is added
 type CLIFlags struct {
 	OutputDir       string
 	EtherScanApiKey string
 	Address         string
 }
 
-type Result struct {
-	SourceCode           string // it's a string and then parsed again, why??
+// JSON Demarshalling Types ----------------------------------------------------
+type JSONEndpointResponse struct {
+	Status  string
+	Message string
+	Result  []JSONResult
+}
+
+type JSONResult struct {
+	SourceCode           string // it's a string but could be the source code string or a json string of multiple files
 	ABI                  string
 	ContractName         string
 	CompilerVersion      string
@@ -20,27 +29,29 @@ type Result struct {
 	Implmentation        string
 	SwarmSource          string
 }
-type EndpointResponse struct {
-	Status  string
-	Message string
-	Result  []Result
-}
-type SourceCode struct {
+
+type JSONSourceCode struct {
 	Language string
-	Sources  map[string]Content
-	Settings Settings //todo
+	Sources  map[string]JSONContent
+	Settings JSONSettings //todo
 }
-type Content struct {
+type JSONContent struct {
 	Content string
 }
-type Settings struct {
-	Optimizer       Optimizer
+type JSONSettings struct {
+	Optimizer       JSONOptimizer
 	OutputSelection interface{}
 	ViaIR           bool
 	Libraries       interface{}
 }
-type Optimizer struct {
+type JSONOptimizer struct {
 	Enabled bool
 	Runs    int
 	Details interface{}
+}
+
+// Convenience Types -----------------------------------------------------------
+type SourceCode struct {
+	Content      string
+	RelativePath string
 }

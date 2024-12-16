@@ -96,9 +96,9 @@ func GetJSON(url string, result interface{}) error {
 	return nil
 }
 
-func GetSources(address, apiKey string) SourceCode {
+func GetResult(address, apiKey string) JSONResult {
 
-	var apiResonse EndpointResponse
+	var apiResonse JSONEndpointResponse
 	err := GetJSON(CreateSourceCodeEndpoint(address, apiKey), &apiResonse)
 	panicIfNotNil("Error when gathering JSON: %V", err)
 	// status can come back zero
@@ -106,25 +106,46 @@ func GetSources(address, apiKey string) SourceCode {
 		panic("API Call returned bad status: " + apiResonse.Message)
 	}
 
-	// We have to trim the source code string to make valid JSON
-	// it is wrapped in curly brackets {} for some reason
-	var sourceCodeStr string = TrimFirstAndLastChar(apiResonse.Result[0].SourceCode)
-
-	// Build the SourceCode Object from the JSON
-	var sourceCode SourceCode
-	err = json.NewDecoder(bytes.NewReader([]byte(sourceCodeStr))).Decode(&sourceCode)
-	panicIfNotNil("Error when decoding JSON: %v", err)
-
-	return sourceCode
+	// is there always only 1??
+	return apiResonse.Result[0]
 
 }
 
 // Writer functions ------------------------------------------------------------
-func WriteSourceCode(sourceObj SourceCode, directory string) {
 
-	for relativepath, content := range sourceObj.Sources {
+func GetSources(result JSONResult) []SourceCode {
+	var output []SourceCode
+
+	r, _ := utf8.DecodeRuneInString(result.SourceCode)
+	if r == '{' {
+		// sometimes we get inner json
+
+		// We have to trim the source code string to make valid JSON
+		// it is wrapped in curly brackets {} for some reason
+		var sourceCodeStr string = TrimFirstAndLastChar(result.SourceCode)
+
+		// Build the SourceCode Object from the JSON
+		var sourceCode JSONSourceCode
+		err := json.NewDecoder(bytes.NewReader([]byte(sourceCodeStr))).Decode(&sourceCode)
+		panicIfNotNil("Error when decoding multiple sources from JSON: %v", err)
+		for relPath, content := range sourceCode.Sources {
+			output = append(output, SourceCode{content.Content, relPath})
+		}
+
+	} else {
+		// sometimes we don't
+		output = append(output, SourceCode{result.SourceCode, result.ContractName + ".sol"})
+	}
+
+	return output
+}
+
+func WriteSourceCode(sourceObj []SourceCode, directory string) {
+
+	for _, source := range sourceObj {
+
 		// fmt.Println(path) // maybe add this with a verbose flag
-		var fullpath string = filepath.Join(directory, relativepath)
+		var fullpath string = filepath.Join(directory, source.RelativePath)
 
 		err := os.MkdirAll(filepath.Dir(fullpath), 0770)
 		panicIfNotNil("Error when making directory: %v", err)
@@ -132,7 +153,7 @@ func WriteSourceCode(sourceObj SourceCode, directory string) {
 		filePtr, err := os.Create(fullpath)
 		panicIfNotNil("Error when creating file: %v", err)
 
-		filePtr.WriteString(content.Content)
+		filePtr.WriteString(source.Content)
 		filePtr.Close()
 	}
 

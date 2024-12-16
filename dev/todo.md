@@ -1,1 +1,4 @@
-1. Add feature: download from single file sources. Currently it only works on multi-file responses.
+# Todo
+
+1. Support other chains
+2. Handle the multiple source files from the result endpoint. I currently have no examples.

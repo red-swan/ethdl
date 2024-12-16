@@ -30,10 +30,13 @@ func main() {
 		var config CLIFlags = BuildConfig()
 
 		// Call Etherscan ------------------------------------------------------------
-		var targetSources SourceCode = GetSources(config.Address, config.EtherScanApiKey)
+		var result JSONResult = GetResult(config.Address, config.EtherScanApiKey)
+
+		// Massage the Data ----------------------------------------------------------
+		var sources []SourceCode = GetSources(result)
 
 		// Write source files out ----------------------------------------------------
-		WriteSourceCode(targetSources, config.OutputDir)
+		WriteSourceCode(sources, config.OutputDir)
 	}
 
 }
