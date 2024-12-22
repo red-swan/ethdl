@@ -1,42 +1,25 @@
 package main
 
 import (
-	"fmt"
-	"os"
-	"slices"
-	"strings"
+	"log"
 )
 
 func main() {
 
-	// Provide usage -------------------------------------------------------------
-	helps := []string{"--help", "-help", "-h", "help"}
-	if slices.Contains(helps, strings.ToLower(os.Args[1])) {
-		lines := []string{
-			"ethdl",
-			"-out <PATH>: the output directory to save the downloaded contracts to.",
-			"             defaults to <current-directory>/<the address we're downloading from>",
-			"-etherscan-api-key <KEY>: your etherscan api key",
-			"                          see https://docs.etherscan.io/getting-started/viewing-api-usage-statistics",
-			"                          this will read the ETHERSCAN_API_KEY environment variable if provided by",
-			"                          the system or a local .env file",
-			"<ADDRESS>: the etherscan address to download contracts from. Currently only mainnet is possible.",
-		}
-		for _, line := range lines {
-			fmt.Println(line)
-		}
-	} else {
-		// Gathering run params ------------------------------------------------------
-		var config CLIFlags = BuildConfig()
+	// Gathering run params ------------------------------------------------------
+	config, err := BuildConfig()
 
-		// Call Etherscan ------------------------------------------------------------
-		var result JSONResult = GetResult(config.Address, config.EtherScanApiKey)
-
-		// Massage the Data ----------------------------------------------------------
-		var sources []SourceCode = GetSources(result)
-
-		// Write source files out ----------------------------------------------------
-		WriteSourceCode(sources, config.OutputDir)
+	if err != nil {
+		log.Fatalf(err.Error())
 	}
+
+	// Call Etherscan ------------------------------------------------------------
+	var result JSONResult = MustGetResult(config.Address, config.ApiKey)
+
+	// Massage the Data ----------------------------------------------------------
+	var sources []SourceCode = MustGetSources(result)
+
+	// Write source files out ----------------------------------------------------
+	MustWriteSourceCode(sources, config.OutputDir)
 
 }

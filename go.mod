@@ -1,4 +1,4 @@
-module ethdl
+module getChainCode
 
 go 1.23.2
 

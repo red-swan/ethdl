@@ -3,12 +3,15 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"unicode/utf8"
 
@@ -34,48 +37,120 @@ func isAddressString(s string) bool {
 
 // CLI Arg Handler -------------------------------------------------------------
 
-func BuildConfig() CLIFlags {
-	// Gathering flags
-	pathPtr := flag.String("out", ".", "The ouptut path, will default to the current directory.")
-	keyPtr := flag.String("etherscan-api-key", "", "Your etherscan api key")
-	flag.Parse()
-	config := CLIFlags{*pathPtr, *keyPtr, ""}
-
-	// Handle default etherscan key ----------------
-	if config.EtherScanApiKey == "" {
-		// Load an env file, ignore any errors
-		godotenv.Load()
-
-		config.EtherScanApiKey = os.Getenv("ETHERSCAN_API_KEY")
+func ProvideUsage() error {
+	lines := []string{
+		"getChainCode <chainId> <address> <optional flags>",
+		"chainId can be: mainnet, arbitrum, arbnova, polygon, base",
+		"address need not be checksummed but must be a valid, 40 character string",
+		"",
+		"Optional Flags:",
+		"-out <PATH>: the output directory to save the downloaded contracts to.",
+		"             defaults to <current-directory>/<the address we're downloading code for>",
+		"-api-key <KEY>: your etherscan api key",
+		"                see https://docs.etherscan.io/getting-started/viewing-api-usage-statistics",
+		"                if not provided, the cli will read the appropriate environment variable if",
+		"                provided by the system or a local .env file",
+		"                Default variables: ",
+		"                mainnet:  ETHERSCAN_API_KEY",
+		"                arbitrum: ARBISCAN_API_KEY",
+		"                arbnova:  ARBISCAN_NOVA_API_KEY",
+		"                polygon:  POLYGONSCAN_API_KEY",
+		"                base:     BASESCAN_API_KEY",
 	}
-	if config.EtherScanApiKey == "" {
-		panic("No key provided and could not find ETHERSCAN_API_KEY envvar")
+	return errors.New(strings.Join(lines, "\n"))
+}
+
+func BuildConfig() (ProgramConfig, error) {
+	var config ProgramConfig
+
+	// parse help arg ----------------------------------------
+	helps := []string{"--help", "-help", "-h", "help"}
+	if slices.Contains(helps, strings.ToLower(os.Args[1])) {
+		return config, ProvideUsage()
+	}
+
+	// parse chain arg ---------------------------------------
+	chains := [...]string{"mainnet", "arbitrum", "arbnova", "polygon", "base"}
+	specifiedChain := strings.ToLower(os.Args[1])
+	if !slices.Contains(chains[:], specifiedChain) {
+		chainErr := errors.New("Must provide a valid chain id")
+		return config, errors.Join(chainErr, ProvideUsage())
+	}
+	switch specifiedChain {
+	case "mainnet":
+		config.ChainApiBaseURL = Mainnet
+	case "arbitrum":
+		config.ChainApiBaseURL = ArbOne
+	case "arbnova":
+		config.ChainApiBaseURL = ArbNova
+	case "polygon":
+		config.ChainApiBaseURL = Polygon
+	case "base":
+		config.ChainApiBaseURL = Base
+	default:
+		log.Fatalf("The logic for chains is not complete: %s went unhandled", specifiedChain)
 	}
 
 	// Handle the address --------------------------
-	var remainingArgs []string = flag.Args()
-	if len(remainingArgs) != 1 {
-		panic("Must provide an address and only an address at the end")
+	specifiedAddress := os.Args[2]
+	if !isAddressString(specifiedAddress) {
+		errAddress := errors.New("Specified Address is not correct. It must start with 0x and be 42 characters long")
+		return config, errors.Join(errAddress, ProvideUsage())
 	}
-	if !isAddressString(remainingArgs[0]) {
-		panic("Address string is not correct format: " + remainingArgs[0])
+	config.Address = specifiedAddress
+
+	// Gathering flags -----------------------------
+	pathPtr := flag.String("out", ".", "The ouptut path, will default to the current directory.")
+	keyPtr := flag.String("etherscan-api-key", "", "Your etherscan api key")
+	flag.Parse()
+	config.ApiKey = *keyPtr
+	config.OutputDir = *pathPtr
+
+	// Handle default etherscan key ----------------
+
+	if config.ApiKey == "" {
+		// Load an env file, ignore any errors
+		godotenv.Load()
+
+		var envVar string
+		switch specifiedAddress {
+		case "mainnet":
+			envVar = "ETHERSCAN_API_KEY"
+		case "arbitrum":
+			envVar = "ARBISCAN_API_KEY"
+		case "arbnova":
+			envVar = "ARBISCAN_NOVA_API_KEY"
+		case "polygon":
+			envVar = "POLYGONSCAN_API_KEY"
+		case "base":
+			envVar = "BASESCAN_API_KEY"
+		}
+		config.ApiKey = os.Getenv(envVar)
 	}
-	config.Address = remainingArgs[0]
+	if config.ApiKey == "" {
+		errApiKey := errors.New("No key provided and could not find ETHERSCAN_API_KEY envvar")
+		return config, errors.Join(errApiKey, ProvideUsage())
+	}
 
 	// Handle default output path ------------------
-	if config.OutputDir == "." {
+	if config.OutputDir == "." || config.OutputDir == "" {
 		wd, err := os.Getwd()
 		panicIfNotNil("Error when getting working directory: %v", err)
 		// defaults to the working directory + the address we're downloading from
 		config.OutputDir = filepath.Join(wd, config.Address)
 	}
 
-	return config
+	return config, nil
 }
 
 // Etherscan Functions ---------------------------------------------------------
-func CreateSourceCodeEndpoint(address, key string) string {
-	return fmt.Sprintf("https://api.etherscan.io/api?module=contract&action=getsourcecode&address=%s&apikey=%s", address, key)
+func CreateSourceCodeEndpoint(base, address, key string) string {
+	v := url.Values{}
+	v.Set("module", "contract")
+	v.Set("action", "getsourcecode")
+	v.Set("address", address)
+	v.Set("apikey", key)
+	return base + v.Encode()
 }
 
 func GetJSON(url string, result interface{}) error {
@@ -96,10 +171,10 @@ func GetJSON(url string, result interface{}) error {
 	return nil
 }
 
-func GetResult(address, apiKey string) JSONResult {
+func MustGetResult(config ProgramConfig) JSONResult {
 
 	var apiResonse JSONEndpointResponse
-	err := GetJSON(CreateSourceCodeEndpoint(address, apiKey), &apiResonse)
+	err := GetJSON(CreateSourceCodeEndpoint(config.ChainApiBaseURL, config.Address, config.ApiKey), &apiResonse)
 	panicIfNotNil("Error when gathering JSON: %V", err)
 	// status can come back zero
 	if apiResonse.Status != "1" {
@@ -113,7 +188,7 @@ func GetResult(address, apiKey string) JSONResult {
 
 // Writer functions ------------------------------------------------------------
 
-func GetSources(result JSONResult) []SourceCode {
+func MustGetSources(result JSONResult) []SourceCode {
 	var output []SourceCode
 
 	r, _ := utf8.DecodeRuneInString(result.SourceCode)
@@ -140,7 +215,7 @@ func GetSources(result JSONResult) []SourceCode {
 	return output
 }
 
-func WriteSourceCode(sourceObj []SourceCode, directory string) {
+func MustWriteSourceCode(sourceObj []SourceCode, directory string) {
 
 	for _, source := range sourceObj {
 
