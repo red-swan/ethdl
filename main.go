@@ -14,7 +14,7 @@ func main() {
 	}
 
 	// Call Etherscan ------------------------------------------------------------
-	var result JSONResult = MustGetResult(config.Address, config.ApiKey)
+	var result JSONResult = MustGetResult(config)
 
 	// Massage the Data ----------------------------------------------------------
 	var sources []SourceCode = MustGetSources(result)

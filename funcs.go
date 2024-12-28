@@ -65,7 +65,7 @@ func BuildConfig() (ProgramConfig, error) {
 
 	// parse help arg ----------------------------------------
 	helps := []string{"--help", "-help", "-h", "help"}
-	if slices.Contains(helps, strings.ToLower(os.Args[1])) {
+	if len(os.Args) < 3 || slices.Contains(helps, strings.ToLower(os.Args[1])) {
 		return config, ProvideUsage()
 	}
 
@@ -107,13 +107,12 @@ func BuildConfig() (ProgramConfig, error) {
 	config.OutputDir = *pathPtr
 
 	// Handle default etherscan key ----------------
-
+	var envVar string
 	if config.ApiKey == "" {
 		// Load an env file, ignore any errors
 		godotenv.Load()
 
-		var envVar string
-		switch specifiedAddress {
+		switch specifiedChain {
 		case "mainnet":
 			envVar = "ETHERSCAN_API_KEY"
 		case "arbitrum":
@@ -128,7 +127,7 @@ func BuildConfig() (ProgramConfig, error) {
 		config.ApiKey = os.Getenv(envVar)
 	}
 	if config.ApiKey == "" {
-		errApiKey := errors.New("No key provided and could not find ETHERSCAN_API_KEY envvar")
+		errApiKey := errors.New("No key provided and could not find" + envVar + " envvar")
 		return config, errors.Join(errApiKey, ProvideUsage())
 	}
 
