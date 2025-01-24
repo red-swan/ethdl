@@ -3,20 +3,11 @@ package main
 // CLI Flags
 // dev: will be changed when config file feature is added
 
-const (
-	Mainnet  = "https://api.etherscan.io/api?"
-	ArbOne   = "https://api.arbiscan.io/api?"
-	ArbNova  = "https://api-nova.arbiscan.io/api?"
-	Optimism = "https://api-optimistic.etherscan.io/api?"
-	Base     = "https://api.basescan.org/api?"
-	Polygon  = "https://api.polygonscan.com/api?"
-)
-
 type ProgramConfig struct {
-	OutputDir       string
-	ChainApiBaseURL string
-	ApiKey          string
-	Address         string
+	OutputDir string
+	ApiKey    string
+	ChainId   string
+	Address   string
 }
 
 // JSON Demarshalling Types ----------------------------------------------------

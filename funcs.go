@@ -73,20 +73,22 @@ func BuildConfig() (ProgramConfig, error) {
 	chains := [...]string{"mainnet", "arbitrum", "arbnova", "polygon", "base"}
 	specifiedChain := strings.ToLower(os.Args[1])
 	if !slices.Contains(chains[:], specifiedChain) {
-		chainErr := errors.New("Must provide a valid chain id")
+		chainErr := errors.New("must provide a valid chain id")
 		return config, errors.Join(chainErr, ProvideUsage())
 	}
 	switch specifiedChain {
 	case "mainnet":
-		config.ChainApiBaseURL = Mainnet
+		config.ChainId = "1"
 	case "arbitrum":
-		config.ChainApiBaseURL = ArbOne
+		config.ChainId = "4161"
 	case "arbnova":
-		config.ChainApiBaseURL = ArbNova
+		config.ChainId = "42170"
 	case "polygon":
-		config.ChainApiBaseURL = Polygon
+		config.ChainId = "137"
 	case "base":
-		config.ChainApiBaseURL = Base
+		config.ChainId = "8453"
+	case "optimism":
+		config.ChainId = "10"
 	default:
 		log.Fatalf("The logic for chains is not complete: %s went unhandled", specifiedChain)
 	}
@@ -94,7 +96,7 @@ func BuildConfig() (ProgramConfig, error) {
 	// Handle the address --------------------------
 	specifiedAddress := os.Args[2]
 	if !isAddressString(specifiedAddress) {
-		errAddress := errors.New("Specified Address is not correct. It must start with 0x and be 42 characters long")
+		errAddress := errors.New("specified address is not correct. It must start with 0x and be 42 characters long")
 		return config, errors.Join(errAddress, ProvideUsage())
 	}
 	config.Address = specifiedAddress
@@ -107,27 +109,14 @@ func BuildConfig() (ProgramConfig, error) {
 	config.OutputDir = *pathPtr
 
 	// Handle default etherscan key ----------------
-	var envVar string
+	var envVar string = "ETHERSCAN_API_KEY"
 	if config.ApiKey == "" {
 		// Load an env file, ignore any errors
 		godotenv.Load()
-
-		switch specifiedChain {
-		case "mainnet":
-			envVar = "ETHERSCAN_API_KEY"
-		case "arbitrum":
-			envVar = "ARBISCAN_API_KEY"
-		case "arbnova":
-			envVar = "ARBISCAN_NOVA_API_KEY"
-		case "polygon":
-			envVar = "POLYGONSCAN_API_KEY"
-		case "base":
-			envVar = "BASESCAN_API_KEY"
-		}
 		config.ApiKey = os.Getenv(envVar)
 	}
 	if config.ApiKey == "" {
-		errApiKey := errors.New("No key provided and could not find" + envVar + " envvar")
+		errApiKey := errors.New("No key provided and could not find " + envVar + " envvar")
 		return config, errors.Join(errApiKey, ProvideUsage())
 	}
 
@@ -143,13 +132,16 @@ func BuildConfig() (ProgramConfig, error) {
 }
 
 // Etherscan Functions ---------------------------------------------------------
-func CreateSourceCodeEndpoint(base, address, key string) string {
+func CreateSourceCodeEndpoint(chain, address, key string) string {
 	v := url.Values{}
+	v.Set("chainid", chain)
 	v.Set("module", "contract")
 	v.Set("action", "getsourcecode")
 	v.Set("address", address)
 	v.Set("apikey", key)
-	return base + v.Encode()
+	output := "https://api.etherscan.io/v2/api?" + v.Encode()
+	fmt.Println(output)
+	return output
 }
 
 func GetJSON(url string, result interface{}) error {
@@ -173,7 +165,7 @@ func GetJSON(url string, result interface{}) error {
 func MustGetResult(config ProgramConfig) JSONResult {
 
 	var apiResonse JSONEndpointResponse
-	err := GetJSON(CreateSourceCodeEndpoint(config.ChainApiBaseURL, config.Address, config.ApiKey), &apiResonse)
+	err := GetJSON(CreateSourceCodeEndpoint(config.ChainId, config.Address, config.ApiKey), &apiResonse)
 	panicIfNotNil("Error when gathering JSON: %V", err)
 	// status can come back zero
 	if apiResonse.Status != "1" {
