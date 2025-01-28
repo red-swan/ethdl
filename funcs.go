@@ -80,7 +80,7 @@ func BuildConfig() (ProgramConfig, error) {
 	case "mainnet":
 		config.ChainId = "1"
 	case "arbitrum":
-		config.ChainId = "4161"
+		config.ChainId = "42161"
 	case "arbnova":
 		config.ChainId = "42170"
 	case "polygon":
