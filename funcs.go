@@ -140,7 +140,6 @@ func CreateSourceCodeEndpoint(chain, address, key string) string {
 	v.Set("address", address)
 	v.Set("apikey", key)
 	output := "https://api.etherscan.io/v2/api?" + v.Encode()
-	fmt.Println(output)
 	return output
 }
 

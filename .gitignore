@@ -1,3 +1,4 @@
 .env
-getChainCode
-getChainCode.exe
+chaincode
+chaincode.exe
+dev/
