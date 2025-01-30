@@ -40,7 +40,7 @@ func isAddressString(s string) bool {
 func ProvideUsage() error {
 	lines := []string{
 		"getChainCode <chainId> <address> <optional flags>",
-		"chainId can be: mainnet, arbitrum, arbnova, polygon, base",
+		"chainId can be: mainnet, arbitrum, arbnova, polygon, base, optimism",
 		"address need not be checksummed but must be a valid, 40 character string",
 		"",
 		"Optional Flags:",
@@ -50,12 +50,7 @@ func ProvideUsage() error {
 		"                see https://docs.etherscan.io/getting-started/viewing-api-usage-statistics",
 		"                if not provided, the cli will read the appropriate environment variable if",
 		"                provided by the system or a local .env file",
-		"                Default variables: ",
-		"                mainnet:  ETHERSCAN_API_KEY",
-		"                arbitrum: ARBISCAN_API_KEY",
-		"                arbnova:  ARBISCAN_NOVA_API_KEY",
-		"                polygon:  POLYGONSCAN_API_KEY",
-		"                base:     BASESCAN_API_KEY",
+		"                Default variable: ETHERSCAN_API_KEY",
 	}
 	return errors.New(strings.Join(lines, "\n"))
 }
@@ -70,7 +65,7 @@ func BuildConfig() (ProgramConfig, error) {
 	}
 
 	// parse chain arg ---------------------------------------
-	chains := [...]string{"mainnet", "arbitrum", "arbnova", "polygon", "base"}
+	chains := [...]string{"mainnet", "arbitrum", "arbnova", "polygon", "base", "optimism"}
 	specifiedChain := strings.ToLower(os.Args[1])
 	if !slices.Contains(chains[:], specifiedChain) {
 		chainErr := errors.New("must provide a valid chain id")
@@ -140,6 +135,7 @@ func CreateSourceCodeEndpoint(chain, address, key string) string {
 	v.Set("address", address)
 	v.Set("apikey", key)
 	output := "https://api.etherscan.io/v2/api?" + v.Encode()
+	// fmt.Println(output)
 	return output
 }
 
