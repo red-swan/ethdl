@@ -41,12 +41,12 @@ func ProvideUsage() error {
 	lines := []string{
 		"getChainCode <chainId> <address> <optional flags>",
 		"chainId can be: mainnet, arbitrum, arbnova, polygon, base, optimism",
-		"address need not be checksummed but must be a valid, 40 character string",
+		"address need not be checksummed but must be a valid, 42 character string (0x + 40 hex chars)",
 		"",
 		"Optional Flags:",
 		"-out <PATH>: the output directory to save the downloaded contracts to.",
 		"             defaults to <current-directory>/<the address we're downloading code for>",
-		"-api-key <KEY>: your etherscan api key",
+		"-key <KEY>: your etherscan api key",
 		"                see https://docs.etherscan.io/getting-started/viewing-api-usage-statistics",
 		"                if not provided, the cli will read the appropriate environment variable if",
 		"                provided by the system or a local .env file",
@@ -98,8 +98,8 @@ func BuildConfig() (ProgramConfig, error) {
 
 	// Gathering flags -----------------------------
 	pathPtr := flag.String("out", ".", "The ouptut path, will default to the current directory.")
-	keyPtr := flag.String("etherscan-api-key", "", "Your etherscan api key")
-	flag.Parse()
+	keyPtr := flag.String("key", "", "Your etherscan api key")
+	flag.CommandLine.Parse(os.Args[3:])
 	config.ApiKey = *keyPtr
 	config.OutputDir = *pathPtr
 
